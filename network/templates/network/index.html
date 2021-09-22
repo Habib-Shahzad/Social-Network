@@ -1,0 +1,759 @@
+{% extends "network/layout.html" %}
+
+
+{% block style %}
+
+{% load static %}
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons"
+    rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+ 
+{% endblock %}
+
+{% block body %}
+<div id="docbody">
+    <input id="username" type="hidden" value={{user}} />
+    <input id='pagenumP' type="hidden" value="1"/>
+    <input id='pagenumF' type="hidden" value="1"/>
+    <input id='pagenumU' type="hidden" value="1"/>
+    <input id='numfoll1'  type="hidden" value='0'/>
+    
+
+    {% if user.is_authenticated %}  
+    <div id="make-post">
+        <br><h3>Write a post</h3><br>
+      <div id="colorful">
+        <textarea spellcheck="false" id="post" name="post" placeholder="what are you thinking?"></textarea>
+    </div>
+        <br>
+        <div class="back">
+          <div id='post-it' class="button_base b05_3d_roll">
+              <div>Post it</div>
+              <div>Post it</div>
+          </div>
+        </div>
+        
+    </div>
+    {% else %}
+    <br><br>
+        <div style="text-align: center;" class="alert alert-danger" role="alert">
+        You need to be Logged in to make a post or like a post!
+        </div>
+    {% endif %}
+        <br>
+        <div id="added"></div>
+        <div id="fall"></div>
+        <div id='followers'></div>
+        <div id='following'></div>
+        <br>
+        <h3 id="heading">All Posts</h3>
+        <div id="whichpage"> <h3 style="color: white; font-size: 22px;"> Page 1</h3></div>
+    <div id="all-posts">        
+    </div>
+
+    <div id='togglepages'>
+      <div style="padding-left: 560px; padding-top: 20px;">
+        <ul class="pagination">
+          <li id='previousP' class="page-item"><button class="page-link">Previous</button></li>
+          <li id='nextP' class="page-item"><button class="page-link">Next</button></li>
+        </ul>
+      </div>
+      </div>
+
+</div>
+  
+
+{% endblock %}
+
+
+{% block script %}
+
+{% if user.is_authenticated %} 
+<script language="javascript">
+
+function toggleLike(id) {
+    $(`#${id}`).toggleClass('is-active');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelector('#post-it').addEventListener('click', () => addpost());
+    
+    document.querySelector('#following-posts').addEventListener('click', () => { 
+    followingposts();
+    movepages('F');
+    });
+        
+});
+
+posts();
+movepages();
+
+function movepages(act='P', name='') {
+
+  if (act=='P') {
+document.querySelector(`#next${act}`).addEventListener('click', () => {
+  document.querySelector(`#pagenum${act}`).value = parseInt(document.querySelector(`#pagenum${act}`).value) + 1;
+  posts();
+  togglePrevious();
+});
+
+
+togglePrevious();
+
+document.querySelector(`#previous${act}`).addEventListener('click', () => {
+
+  document.querySelector(`#pagenum${act}`).value = parseInt(document.querySelector(`#pagenum${act}`).value) - 1;
+  posts();
+  togglePrevious();
+}); }
+
+
+if (act=='F') {
+  $(`#next${act}`).click(function(event){
+  document.querySelector(`#pagenum${act}`).value = parseInt(document.querySelector(`#pagenum${act}`).value) + 1;
+  followingposts();
+  togglePrevious();
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+});
+
+
+togglePrevious();
+
+document.querySelector(`#previous${act}`).addEventListener('click', () => {
+
+  document.querySelector(`#pagenum${act}`).value = parseInt(document.querySelector(`#pagenum${act}`).value) - 1;
+  followingposts();
+  togglePrevious();
+}); }
+
+
+if (act=='U') {
+  $(`#next${act}`).click(function(event){
+  document.querySelector(`#pagenum${act}`).value = parseInt(document.querySelector(`#pagenum${act}`).value) + 1;
+  profile(name);
+  togglePrevious();
+  event.preventDefault();
+    event.stopImmediatePropagation();
+});
+
+
+togglePrevious();
+
+document.querySelector(`#previous${act}`).addEventListener('click', () => {
+
+  document.querySelector(`#pagenum${act}`).value = parseInt(document.querySelector(`#pagenum${act}`).value) - 1;
+  profile(name);
+  togglePrevious();
+}); }
+
+
+
+function togglePrevious() {
+
+if (parseInt(document.querySelector(`#pagenum${act}`).value) == 1) {document.querySelector(`#previous${act}`).innerHTML = ""} 
+else {document.querySelector(`#previous${act}`).innerHTML= '<button class="page-link">Previous</button>'}
+
+if (act=='U') {
+  fetch(`numpages${act}/${name}`)
+  .then(response => response.json())
+  .then(result => {
+     if (document.querySelector(`#pagenum${act}`).value == result.maxpages) {$(`#next${act}`).html('')}
+    else {document.querySelector(`#next${act}`).innerHTML = '<button class="page-link">Next</button>'}
+});
+}
+else {
+fetch(`numpages${act}`)
+  .then(response => response.json())
+  .then(result => {
+     if (document.querySelector(`#pagenum${act}`).value == result.maxpages) {document.querySelector(`#next${act}`).innerHTML = ""}
+    else {document.querySelector(`#next${act}`).innerHTML = '<button class="page-link">Next</button>'}
+});}
+
+}
+
+}
+
+
+function followingposts() {
+
+  $('#followers').html('');
+  $('#following').html('');
+  $('#follbut').html('');
+  $('#fall').html('');
+  $('#togglepagesU').html('');
+
+
+  document.querySelector('#all-posts').innerHTML = "";
+  document.querySelector('#make-post').innerHTML = "";
+  document.querySelector('#heading').innerHTML = 'timeline';
+
+  var page  = document.querySelector('#pagenumF').value;
+
+  $('#whichpage').html(`<div id="whichpage"> <h3 style="color: white; font-size: 22px;"> Page ${page}</h3></div>`)
+
+
+  console.log(page);
+
+  $('#togglepages').html(`
+  <div id='toggleF' style="padding-left: 560px; padding-top: 20px;">
+    <ul class="pagination">
+      <li id='previousF' class="page-item"><button class="page-link">Previous</button></li>
+      <li id='nextF' class="page-item"><button class="page-link">Next</button></li>
+    </ul>
+    </div>`)
+
+  var user = document.querySelector('#username').value
+
+fetch(`following?page=${page}`)
+.then(response => response.json())
+.then(result => {
+result.forEach((element) => {
+  isliked(`${element.id}`);
+    var div = document.createElement('div')
+    div.innerHTML = `<div id='${element.id}L' class = "elementLikes"> ${element.likes} </div>
+    <div class="container">
+        <div class="wrapper">
+            <a id=${element.id} onclick = 'toggleLike(${element.id}); addlike(${element.id})' href="javascript:void(0);" class="like-button">
+            <i class="material-icons not-liked bouncy">favorite_border</i>
+            <i class="material-icons is-liked bouncy">favorite</i>
+            <span class="like-overlay"></span>
+            </a>
+
+        </div>
+    </div>
+
+    <div id='${element.id}B'  style="padding-left:150px;" >
+            <div id='${element.id}P' class="gradient-border">
+            <div style="font-weight: bold; font-size: 26px;"> 
+              <a class="elusername" href="javascript:profile('${element.user}'); movepages('U','${element.user}');"> ${element.user} </a>
+            </div>
+            <div class="elemPost" >${element.post}</div>
+            <div class="elemTimeStamp" >${element.timestamp}</div>
+            </div>
+
+        </div>
+
+        <br> <br>  `
+
+    document.querySelector('#all-posts').appendChild(div);
+
+    if (user == element.user) {
+    }
+    else {$(`#${element.id}E`).html('') }
+})
+
+})
+
+movepages('F');
+
+fetch('numpagesF')
+.then(response => response.json())
+.then(result => { console.log(result)
+  if (parseInt(result.length)<11) {
+    $('#togglepages').html('');
+    $('#previousF').html('');
+    
+    }
+
+})
+
+
+}
+
+
+function addlike(id) {
+   var active = $(`#${id}`).hasClass('is-active');
+
+   if (active) {
+    var count = $(`#${id}L`).html();
+    $(`#${id}L`).html(parseInt(count)+1)
+
+   }
+   else {
+    var count = $(`#${id}L`).html();
+    $(`#${id}L`).html(parseInt(count)-1) 
+   }
+
+   fetch(`/addlike/${id}`, {
+    method: 'POST',
+    body: JSON.stringify({
+        active: active
+    })
+  })
+  .then(response => response.json())
+  .then(result => {
+      console.log(result)
+  })  
+}
+
+function reload() {
+  location.reload();
+  return false;
+}
+
+function follownow(name) {
+
+  var followed = $('#follow').html() == 'Follow';
+  console.log(followed);
+
+  if (followed) {
+  fetch(`follow/${name}/1`)
+  var count = parseInt($(`#foll1`).html());
+  $(`#foll1`).html(count+1)
+     }
+
+  else {
+    fetch(`follow/${name}/0`) 
+    var count = parseInt($(`#foll1`).html());
+    $(`#foll1`).html(count-1)
+     }
+
+
+var x = document.querySelector('#follow').innerHTML;
+
+if (x=='Follow') {document.querySelector('#follow').innerHTML = 'Unfollow' } 
+else {document.querySelector('#follow').innerHTML = 'Follow' }
+
+}
+
+
+function profile(name,page) {
+
+  fetch(`numpagesU/${name}`)
+.then(response => response.json())
+.then(result => {
+  if (parseInt(result.length)<11) {
+    $('#togglepages').html('')
+}
+})
+  
+
+  var page  = document.querySelector('#pagenumU').value;
+
+  $('#whichpage').html(`<div id="whichpage"> <h3 style="color: white; font-size: 22px;"> Page ${page}</h3></div>`)
+
+
+  console.log(page);
+
+  $('#toggleF').html('');
+    
+    document.querySelector('#togglepages').innerHTML = `
+  <div style="padding-left: 560px; padding-top: 20px;">
+    <ul class="pagination">
+      <li id='previousU' class="page-item"><button class="page-link">Previous</button></li>
+      <li id='nextU' class="page-item"><button class="page-link">Next</button></li>
+    </ul>
+    </div>`
+  
+
+
+  var user = document.querySelector('#username').value;
+  
+  var B = $('#fall').html();
+
+
+  document.querySelector('#all-posts').innerHTML = "";
+  document.querySelector('#make-post').innerHTML = "";
+  document.querySelector('#heading').innerHTML = name;
+
+  fetch(`getfollow/${name}`)
+  .then(response=>response.json())
+  .then(result => {
+    document.querySelector('#followers').innerHTML = `Followers: <div style='display:inline;' id = 'foll1''>${result.followers}</div>
+    `
+    document.querySelector('#numfoll1').value = parseInt(result.followers);
+  document.querySelector('#following').innerHTML = `Following: <div style='display:inline;' id='foll2'>${result.following}</div>`
+  })
+  
+
+
+  if (user==name) {}
+  else {
+  var follow = document.createElement('div')
+  follow.innerHTML = `
+  <div class="back">
+  <div id='follbut' class="button_base b12_3d_glitch">
+      <div></div>
+      <div id='follow' onclick="follownow('${name}');">Follow</div>
+  </div>
+</div>`
+  
+  if (B=="") {
+  document.querySelector('#fall').appendChild(follow);} }
+
+
+
+  fetch(`followed/${name}`)
+  .then(response => response.json())
+  .then(result => {
+    if (result.followed) {
+    document.querySelector('#follow').innerHTML = 'Unfollow';}
+  })
+
+  fetch(`profile/${name}?page=${page}`)
+  .then(response => response.json())
+  .then(result => {
+    result.forEach((element) => {
+      isliked(`${element.id}`);
+        var div = document.createElement('div')
+        div.innerHTML = `
+        <div id='${element.id}L' class = "elementLikes"> ${element.likes} </div>
+        <div class="container">
+            <div class="wrapper">
+                <a id=${element.id} onclick = 'toggleLike(${element.id}); addlike(${element.id})' href="javascript:void(0);" class="like-button">
+                <i class="material-icons not-liked bouncy">favorite_border</i>
+                <i class="material-icons is-liked bouncy">favorite</i>
+                <span class="like-overlay"></span>
+                </a>
+
+            </div>
+        </div>
+
+
+        <div id='${element.id}B'  style="padding-left:150px;" >
+            <div id='${element.id}P' class="gradient-border">
+            <div style="font-weight: bold; font-size: 26px;"> <a class="elusername"${element.user}');"> ${element.user} </a>
+                <a id='${element.id}E' style="font-size: 21px; position: relative; left:50px; color:white;" href="javascript:editpost('${element.id}');">Edit</a> 
+            </div>
+            <div class="elemPost" >${element.post}</div>
+            <div class="elemTimeStamp" >${element.timestamp}</div>
+            </div>
+
+        </div>
+        
+
+        <br> <br> 
+`
+        document.querySelector('#all-posts').appendChild(div);
+
+        if (user == element.user) {
+        }
+        else {$(`#${element.id}E`).html('') }
+    })
+
+})
+
+movepages('U',name);
+
+}
+
+function addpost() {
+    event.preventDefault();
+
+    var user = document.querySelector('#username').value
+
+    const pos = document.querySelector('#post').value
+
+    if (pos=="") {
+        poster(false)}
+    else { 
+      poster();
+fetch('/addpost', {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain', },
+    body: JSON.stringify({
+        post: post.value
+    })
+  })
+
+  .then(response => response.json())
+  .then(result => {
+    isliked(`${result.id}`);
+        var div = document.createElement('div')
+        div.innerHTML = `<div id='${result.id}L' class = "elementLikes"> ${result.likes} </div>
+        <div class="container">
+            <div class="wrapper">
+                <a id=${result.id} onclick = 'toggleLike(${result.id}); addlike(${result.id})' href="javascript:void(0);" class="like-button">
+                <i class="material-icons not-liked bouncy">favorite_border</i>
+                <i class="material-icons is-liked bouncy">favorite</i>
+                <span class="like-overlay"></span>
+                </a>
+
+            </div>
+        </div>
+
+        <div id='${result.id}B'  style="padding-left:150px;" >
+            <div id='${result.id}P' class="gradient-border">
+            <div style="font-weight: bold; font-size: 26px;"> <a class="elusername" href="javascript:profile('${result.user}'); movepages('U','${result.user}');"> ${result.user} </a>
+                <a id='${result.id}E' style="font-size: 21px; position: relative; left:50px; color:white;" href="javascript:editpost('${result.id}');">Edit</a> 
+            </div>
+            <div class="elemPost" >${result.post}</div>
+            <div class="elemTimeStamp" >${result.timestamp}</div>
+            </div>
+
+        </div>
+        </div>
+
+        <br> <br> 
+`
+
+        document.querySelector('#all-posts').prepend(div);
+
+        if (user == result.user) {
+        }
+        else {$(`#${result.id}E`).html('') }
+  })
+
+    }
+    $('#post').val('');
+
+}
+
+
+function poster(p=true) {
+  if (p) {
+    var div = document.createElement(div);
+    div.innerHTML = '<div id="banner" style="text-align: center; width: 700px; display: block; margin-left: auto; margin-right: auto;" class="alert alert-success" role="alert"> Post successfully added </div>'
+    document.querySelector("#added").appendChild(div);
+  }
+
+  else {
+    var div = document.createElement(div);
+    div.innerHTML = `<div id='banner' style="text-align: center; width: 700px; display: block; margin-left: auto; margin-right: auto;" class="alert alert-danger" role="alert"> The text field cannot be empty </div>`
+    document.querySelector("#added").appendChild(div);
+  }
+    const elementToFade = document.getElementById('banner');
+
+  elementToFade.onanimationend = (e) => {
+  if (e.srcElement.classList.contains('fade-out')) {
+    elementToFade.parentNode.removeChild(elementToFade);
+  }
+};
+
+if (p) {
+setTimeout(function(){
+  elementToFade.classList.add('fade-out');
+        },2000);}
+
+else {
+  setTimeout(function(){
+  elementToFade.classList.add('fade-out');
+        },500);  
+}
+}
+
+
+function isliked(id) {
+
+  fetch('likes')
+      .then(response => response.json())
+        .then(result => {
+        result.forEach((element) => {
+          if (id == element) {
+          $(`#${element}`).toggleClass('is-active'); }
+      })
+
+      }); 
+}
+
+function editpost(id) {
+  
+    fetch(`posts/${id}`)
+  .then(response => response.json())
+  .then(result => {
+  $(`#${id}P`).html(`
+  <div>
+  <textarea spellcheck="false" class='editfield' style="width:500px;" id='post${id}' name="post" placeholder="what are you thinking?">${result.post}</textarea>
+  </div>
+  <br>
+  <div style="position:relative; right:350px;" class="back">
+  <div id='follbut' class="button_base b12_3d_glitch">
+      <div></div>
+      <div onclick='edit(${id})' style="font-weight: bold; position:relative; bottom:20px; right:50px;">Save Changes</div>
+  </div>
+</div>
+  `)
+
+})  
+
+}
+
+
+function edit(id) {
+  var post = $(`#post${id}`).val()
+
+  fetch(`posts/${id}`)
+  .then(response => response.json())
+  .then(result => {
+  $(`#${id}P`).html(`
+              <div style="font-weight: bold; font-size: 26px;"> <a class="elusername" href="javascript:profile('${result.user}');")> ${result.user} </a>
+                <a id='${result.id}E' style="font-size: 21px; color:white; position: relative; left:50px;" href="javascript:editpost('${result.id}');">Edit</a> 
+            </div>
+            <div style="color:white; font-size:26px;">${post}</div>
+            <div style="opacity: 0.5;color:white; font-size:26px;" >${result.timestamp}</div>`)  
+  });
+
+  fetch(`edit/${id}`, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain', },
+    body: JSON.stringify({
+        post: post
+    })
+  })
+
+}
+
+
+function posts() { 
+
+  var page  = document.querySelector('#pagenumP').value;
+
+  var user = document.querySelector('#username').value;
+
+  $('#whichpage').html(`<div id="whichpage"> <h3 style="color: white; font-size: 22px;"> Page ${page}</h3></div>`)
+
+  $('#all-posts').html('');
+
+  fetch(`posts?page=${page}`)
+    .then(response => response.json())
+    .then(result => {
+    result.forEach((element) => {
+      isliked(`${element.id}`);
+        var div = document.createElement('div')
+        div.innerHTML = `
+        <div>
+        <div id='${element.id}L' class = "elementLikes"> ${element.likes} </div>
+        <div class="container">
+            <div class="wrapper">
+                <a id=${element.id} onclick = 'toggleLike(${element.id}); addlike(${element.id})' href="javascript:void(0);" class="like-button">
+                <i class="material-icons not-liked bouncy">favorite_border</i>
+                <i class="material-icons is-liked bouncy">favorite</i>
+                <span class="like-overlay"></span>
+                </a>
+
+            </div>
+        </div>
+
+        <div id='${element.id}B'  style="padding-left:150px;" >
+            <div id='${element.id}P' class="gradient-border">
+            <div style="font-weight: bold; font-size: 26px;"> <a class="elusername" href="javascript:profile('${element.user}'); movepages('U','${element.user}');"> ${element.user} </a>
+                <a id='${element.id}E' style="font-size: 21px; position: relative; left:50px; color:white;" href="javascript:editpost('${element.id}');">Edit</a> 
+            </div>
+            <div class="elemPost" >${element.post}</div>
+            <div class="elemTimeStamp" >${element.timestamp}</div>
+            </div>
+
+        </div>
+        
+
+        <br> <br> `
+
+        document.querySelector('#all-posts').appendChild(div);
+
+        if (user == element.user) {
+        }
+        else {$(`#${element.id}E`).html('') }
+    })
+})
+
+
+fetch('numpagesP')
+.then(response => response.json())
+.then(result => {
+  if (parseInt(result.length)<11) {
+    $('#togglepages').html('')
+  }
+
+})
+
+if (parseInt(page)==1) {
+  $('#nextP').html('')
+}
+
+}
+
+
+
+</script>
+
+{% else %}
+
+
+<script>
+
+posts();
+movepages();
+
+function movepages(act='P', name='') {
+
+if (act=='P') {
+document.querySelector(`#next${act}`).addEventListener('click', () => {
+document.querySelector(`#pagenum${act}`).value = parseInt(document.querySelector(`#pagenum${act}`).value) + 1;
+posts();
+togglePrevious();
+});
+
+
+togglePrevious();
+
+document.querySelector(`#previous${act}`).addEventListener('click', () => {
+
+document.querySelector(`#pagenum${act}`).value = parseInt(document.querySelector(`#pagenum${act}`).value) - 1;
+posts();
+togglePrevious();
+}); }
+
+
+function togglePrevious() {
+
+if (parseInt(document.querySelector(`#pagenum${act}`).value) == 1) {document.querySelector(`#previous${act}`).innerHTML = ""} 
+else {document.querySelector(`#previous${act}`).innerHTML= '<button class="page-link">Previous</button>'}
+
+
+ 
+fetch(`numpages${act}`)
+.then(response => response.json())
+.then(result => {
+   if (document.querySelector(`#pagenum${act}`).value == result.maxpages) {document.querySelector(`#next${act}`).innerHTML = ""}
+  else {document.querySelector(`#next${act}`).innerHTML = '<button class="page-link">Next</button>'}
+});
+
+}
+
+}
+
+function posts() {
+
+  var page  = document.querySelector('#pagenumP').value;
+
+  var user = document.querySelector('#username').value;
+
+  $('#whichpage').html(`<div id="whichpage"> <h3 style="color: white; font-size: 22px;"> Page ${page}</h3></div>`)
+
+  $('#all-posts').html('');
+
+    fetch(`posts?page=${page}`)
+    .then(response => response.json())
+    .then(result => {
+    result.forEach((element) => {
+        var div = document.createElement('div')
+        div.innerHTML = `<div id='${element.id}L' class = "elementLikes" > Likes: ${element.likes} </div>
+        <div>
+            <div class="box">
+            <div> <a class="elusername")> ${element.user} </a>
+            </div>
+            <div>${element.post}</div>
+            <div style="opacity: 0.5;" >${element.timestamp}</div>
+            </div>
+
+        </div>
+
+        <br> <br> `
+
+        document.querySelector('#all-posts').appendChild(div);
+    })
+
+})
+
+}
+
+</script>
+
+
+{% endif %}
+
+{% endblock %}
